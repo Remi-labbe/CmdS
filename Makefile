@@ -9,18 +9,18 @@ LDFLAGS = -lrt -pthread -Wl,-z,relro,-z,now -pie
 
 VPATH = $(tools_dir)
 
-OBJS = client.o server.o $(tools_dir)linker.o
+OBJS = $(tools_dir)linker.o
 
-EXECS = client server
+EXECS = cmdc cmds
 
 all: $(EXECS)
 
 linker.o: linker.h config.h linker.c
 
-client: config.h client.c $(tools_dir)linker.o
+cmdc: config.h client.c $(tools_dir)linker.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
-server: config.h server.c $(tools_dir)linker.o
+cmds: config.h server.c $(tools_dir)linker.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
 clean:
