@@ -11,12 +11,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include "linker/linker.h"
-
-#ifndef PIPE_LEN
-#define PIPE_LEN 128
-#endif
-
-#define SIG_FAILURE SIGUSR1
+#include "linker/config.h"
 
 /**
  * @struct    runner
@@ -221,8 +216,7 @@ void start_th(size_t i, client c) {
 /**
  * @function  runner_routine
  * @abstract  Routine ran by a thread when it is listening to a client
- * @param     r       the runner associated to the thread containing information
- *                      used for execution and logging
+ * @param     r       the runner associated to the thread
  */
 void *runner_routine(struct runner *r) {
   if (clock_gettime(CLOCK_REALTIME, &r->start_t) == -1) {

@@ -6,17 +6,10 @@
 #include <fcntl.h>
 #include <signal.h>
 #include "linker/linker.h"
-
-#ifndef PIPE_LEN
-#define PIPE_LEN 128
-#endif
+#include "linker/config.h"
 
 #define STRMEMCPY(dest, src) \
     memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
-
-#ifndef SIG_FAILURE
-#define SIG_FAILURE SIGUSR1
-#endif
 
 void setup_signals(void);
 void handler(int signum);

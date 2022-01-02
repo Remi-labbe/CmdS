@@ -15,12 +15,12 @@ EXECS = client server
 
 all: $(EXECS)
 
-linker.o: linker.h linker.c
+linker.o: linker.h config.h linker.c
 
-client: client.c $(linker_dir)linker.o
+client: config.h client.c $(linker_dir)linker.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
-server: server.c $(linker_dir)linker.o
+server: config.h server.c $(linker_dir)linker.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
 clean:

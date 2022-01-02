@@ -3,14 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
-
-#ifndef SHM_NAME
-#define SHM_NAME "/shm_my_linker_1207"
-#endif
-
-#ifndef CAPACITY
-#define CAPACITY 10
-#endif
+#include "config.h"
 
 #ifndef WD_LEN
 #define WD_LEN 512
