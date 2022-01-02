@@ -85,7 +85,7 @@ int main (int argc, char **argv) {
   char buf_in[blksize_pipe_in];
 
   // Prompt
-  printf("cmds>\n");
+  printf("CmdC>\n");
   ssize_t r_in;
   while ((r_in = read(STDIN_FILENO, buf_in, blksize_pipe_in)) > 0) {
     if (mkfifo(pipe_out, S_IRUSR | S_IWUSR) == -1) {
@@ -142,7 +142,7 @@ int main (int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
     // Prompt
-    printf("cmds>\n");
+    printf("CmdC>\n");
   }
   if (close(fd_in) == -1) {
     perror("close");

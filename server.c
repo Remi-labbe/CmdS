@@ -112,6 +112,12 @@ int main(int argc, char **argv) {
 
   // Open logger
   openlog("cmds", LOG_PID, LOG_DAEMON);
+  for (int i = 0; i < sysconf(_SC_OPEN_MAX); i++) {
+    if (close(i) == -1 && errno == EBADF) {
+      // stop if the file descriptor i is invalid
+      break;
+    }
+  }
   switch (fork()) {
     case -1:
       quit("fork");
@@ -246,16 +252,11 @@ void cleanup(void) {
       }
     }
   }
-  for (int i = 0; i < sysconf(_SC_OPEN_MAX); i++) {
-    if (close(i) == -1 && errno == EBADF) {
-      // stop if the file descriptor i is invalid
-      break;
-    }
-  }
   closelog();
   if (lin != NULL) {
     linker_dispose(&lin);
   }
+  shm_unlink(DAEMON_PID_SHM);
 }
 
 /**
@@ -288,6 +289,16 @@ void quit(const char *fmt, ...) {
  * @abstract  Main loop of the program, listen for requests
  */
 void daemon_main(void) {
+  sigset_t masked;
+  if (sigfillset(&masked) == -1) {
+      quit("sigfillset");
+  }
+  if (sigdelset(&masked, SIGTERM) == -1) {
+      quit("sigdelset");
+  }
+  if (sigprocmask(SIG_SETMASK, &masked, NULL) == -1) {
+      quit("sigprocmask");
+  }
   lin = linker_init(LINKER_SHM);
   if (lin == NULL) {
     quit("linker_init");
