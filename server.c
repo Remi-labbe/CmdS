@@ -53,7 +53,7 @@ struct runner {
 // General server function
 void quit(const char *fmt, ...);
 void cleanup(void);
-void listen(void);
+void daemon_main(void);
 
 // daemon handling
 bool isRunning(void);
@@ -137,7 +137,14 @@ void create_daemon(void) {
   if (setsid() == -1) {
     quit("setsid");
   }
-  //ignore signals
+  //ignore all signals
+  sigset_t set;
+  if (sigfillset(&set) == -1) {
+      quit("sigfillset");
+  }
+  if (sigprocmask(SIG_SETMASK, &set, NULL) == -1) {
+      quit("sigprocmask");
+  }
 
   switch (fork()) {
     case -1:
@@ -177,16 +184,11 @@ void create_daemon(void) {
         perror("sigfillset");
         exit(EXIT_FAILURE);
       }
-
-      if (sigaction(SIGINT, &action, NULL) == -1) {
+      if (sigaction(SIGTERM, &action, NULL) == -1) {
         perror("sigaction");
         exit(EXIT_FAILURE);
       }
-      if (sigaction(SIGQUIT, &action, NULL) == -1) {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-      }
-      listen();
+      daemon_main();
       exit(EXIT_SUCCESS);
     default:
       /* alarm(5); */
@@ -282,10 +284,10 @@ void quit(const char *fmt, ...) {
 }
 
 /**
- * @function  listen
+ * @function  daemon_main
  * @abstract  Main loop of the program, listen for requests
  */
-void listen(void) {
+void daemon_main(void) {
   lin = linker_init(LINKER_SHM);
   if (lin == NULL) {
     quit("linker_init");
