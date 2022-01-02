@@ -18,12 +18,22 @@
 
 #define SIG_FAILURE SIGUSR1
 
+/**
+ * @struct    runner
+ * @abstract  struct associated to a thread to describe client and stuff
+ *
+ * @field     id        unique id
+ * @field     clt       associated client
+ * @field     th        allocated thread
+ * @field     running   is this runner working?
+ * @field     start_t   time runner start working
+ */
 struct runner {
-  size_t id; // Unique id
-  client clt; // client handled by runner
-  pthread_t th; // Thread allocated by server to client
-  bool running; // is this runner working?
-  struct timespec start_t; // Keep track of time spent
+  size_t id;
+  client clt;
+  pthread_t th;
+  bool running;
+  struct timespec start_t;
 };
 
 /* Functions declarations */
@@ -60,6 +70,10 @@ int main(void) {
 
 // AUXILIARY FUNCS
 
+/**
+ * @function  cleanup
+ * @abstract  clean the memory
+ */
 void cleanup(void) {
   if (runner_pool != NULL) {
     for (size_t i = 0; i < CAPACITY; i++) {
@@ -90,6 +104,12 @@ void cleanup(void) {
   }
 }
 
+/**
+ * @function  quit
+ * @abstract  Terminate the program in case of error printing infos in args
+ * @param     fmt      format of the error string
+ * @param     ...      args associated to the string
+ */
 void quit(const char *fmt, ...) {
   const char *err = strerror(errno);
 
@@ -108,6 +128,10 @@ void quit(const char *fmt, ...) {
   exit(EXIT_FAILURE);
 }
 
+/**
+ * @function  setup_signals
+ * @abstract  Setup program behaviour regarding signals
+ */
 void setup_signals(void) {
   struct sigaction action;
   action.sa_handler = handler;
@@ -122,8 +146,16 @@ void setup_signals(void) {
     perror("sigaction");
     exit(EXIT_FAILURE);
   }
+  if (sigaction(SIGQUIT, &action, NULL) == -1) {
+    perror("sigaction");
+    exit(EXIT_FAILURE);
+  }
 }
 
+/**
+ * @function  listen
+ * @abstract  Main loop of the program, listen for requests
+ */
 void listen(void) {
   lin = linker_init(SHM_NAME);
   if (lin == NULL) {
@@ -163,6 +195,12 @@ void listen(void) {
   printf("%d\n", __LINE__);
 }
 
+/**
+ * @function  start_th
+ * @abstract  Start the ith thread in the runner_pool binding it to the client c
+ * @param     i      index if the runner to start
+ * @param     c      client to bind to the runner
+ */
 void start_th(size_t i, client c) {
   memcpy(&runner_pool[i].clt, &c, sizeof(client));
   runner_pool[i].running = true;
@@ -180,6 +218,12 @@ void start_th(size_t i, client c) {
   }
 }
 
+/**
+ * @function  runner_routine
+ * @abstract  Routine ran by a thread when it is listening to a client
+ * @param     r       the runner associated to the thread containing information
+ *                      used for execution and logging
+ */
 void *runner_routine(struct runner *r) {
   if (clock_gettime(CLOCK_REALTIME, &r->start_t) == -1) {
     perror("clock_gettime");
@@ -219,7 +263,7 @@ void *runner_routine(struct runner *r) {
     }
     printf("[%zu] received cmd:%s from [%d]\n",r->id, buf_in, r->clt.pid);
     char *argv[count_args(buf_in) + 1];
-    char buf[strlen(buf_in) + 1];
+    char fmt_buf[strlen(buf_in) + 1];
     int status, fd_out;
     struct timespec start;
     if (clock_gettime(CLOCK_REALTIME, &start) == -1) {
@@ -248,7 +292,7 @@ void *runner_routine(struct runner *r) {
           exit(EXIT_FAILURE);
         }
 
-        fmt_args(buf_in, argv, buf);
+        fmt_args(buf_in, argv, fmt_buf);
 
         execvp(argv[0], argv);
 
@@ -302,13 +346,19 @@ void *runner_routine(struct runner *r) {
   long nsec = end.tv_nsec - r->start_t.tv_nsec;
 
   long diff_ms = sec * 1000 + nsec / 1000000;
-  printf("- Stopped client[%d] on thread[%zu] connection duration: %ldms\n",
+  printf("- Stopped client[%d] on thread[%zu] connection lasted: %ldms\n",
     r->clt.pid, r->id, diff_ms);
   r->running = false;
 
   return NULL;
 }
 
+/**
+ * @function  count_args
+ * @abstract  count words in a string separated by ' '
+ * @param     str       the string in which the function will count words
+ * @result    size_t    the number of word(s)
+ */
 size_t count_args(const char *str) {
   size_t i = 0;
   size_t count = 0;
@@ -326,11 +376,17 @@ size_t count_args(const char *str) {
   return count;
 }
 
+/**
+ * @function  fmt_args
+ * @abstract  put a sliced version of the string str in argv
+ * @param     str       the string to slice !Not modified
+ * @param     argv      the array buffer in which we place words
+ * @param     buf       buffer used to keep words separated by null char
+ */
 void fmt_args(const char *str, char *argv[], char *buf) {
   memcpy(buf, str, strlen(str) + 1);
 
-  size_t i = 0;
-  size_t j = 0;
+  size_t i = 0, j = 0;
 
   argv[j++] = buf;
 
@@ -346,6 +402,11 @@ void fmt_args(const char *str, char *argv[], char *buf) {
 }
 
 // signal handler
+/**
+ * @function  handler
+ * @abstract  handle signals
+ * @param     signum    signal received
+ */
 void handler(int signum) {
   if (signum < 0) {
     quit("Wrong signal number: %d\n", signum);
