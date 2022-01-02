@@ -5,8 +5,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
-#include "linker/linker.h"
-#include "linker/config.h"
+#include "tools/linker.h"
+#include "tools/config.h"
 
 #define STRMEMCPY(dest, src) \
     memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
@@ -52,7 +52,7 @@ int main (int argc, char **argv) {
   // Create pipe to receive data
 
   // connect to server
-  linker *lp = linker_connect(SHM_NAME);
+  linker *lp = linker_connect(LINKER_SHM);
   if (lp == NULL) {
     fprintf(stderr, "Error: Can't connect to server.\n");
     exit(EXIT_FAILURE);

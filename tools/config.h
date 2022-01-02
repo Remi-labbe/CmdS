@@ -5,8 +5,8 @@
 #define CAPACITY 10
 #endif
 
-#ifndef SHM_NAME
-#define SHM_NAME "/shm_my_linker_1207"
+#ifndef LINKER_SHM
+#define LINKER_SHM "/shm_my_linker_1207"
 #endif
 
 #ifndef PIPE_LEN

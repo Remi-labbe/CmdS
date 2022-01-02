@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/syslog.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
@@ -10,8 +11,24 @@
 #include <time.h>
 #include <stdarg.h>
 #include <errno.h>
-#include "linker/linker.h"
-#include "linker/config.h"
+#include <semaphore.h>
+#include <sys/mman.h>
+#include "tools/linker.h"
+#include "tools/config.h"
+
+#ifndef DAEMON_PID_SHM
+#define DAEMON_PID_SHM "/cmds_daemon_pid"
+#endif
+
+#ifndef START
+#define START "start"
+#endif
+
+#ifndef STOP
+#define STOP "stop"
+#endif
+
+#define TESTOPT(opt) strcmp(opt, argv[1]) == 0
 
 /**
  * @struct    runner
@@ -38,6 +55,12 @@ void quit(const char *fmt, ...);
 void cleanup(void);
 void listen(void);
 
+// daemon handling
+bool isRunning(void);
+pid_t store_dpid(void);
+pid_t get_dpid(void);
+void create_daemon(void);
+
 // Threads related
 void start_th(size_t i, client c);
 void *runner_routine(struct runner *r);
@@ -45,7 +68,6 @@ size_t count_args(const char *str);
 void fmt_args(const char *str, char *argv[], char *buf);
 
 // Signal Handler
-void setup_signals(void);
 void handler(int signum);
 
 /* Global scoped variables */
@@ -54,16 +76,157 @@ static struct runner *runner_pool;
 static linker *lin;
 
 // MAIN
+void help(void) {
+  printf("***\nUsage:\n");
+  printf("./server [start|stop]\n");
+  exit(EXIT_SUCCESS);
+}
 
-int main(void) {
-  setup_signals();
+int main(int argc, char **argv) {
+  if (argc < 2 || !(TESTOPT(START) || TESTOPT(STOP))) {
+    help();
+  }
 
-  listen();
+  // test if daemon running
+  bool running = isRunning();
+  if (TESTOPT(START) && running) {
+    fprintf(stderr, "Error: Server is already running.\n");
+    exit(EXIT_FAILURE);
+  } else if (TESTOPT(STOP)) {
+    if (!running) {
+      fprintf(stderr, "Error: Server is not running.\n");
+      exit(EXIT_FAILURE);
+    }
+    // stop the daemon
+    pid_t pid;
+    if ((pid = get_dpid()) == -1) {
+      fprintf(stderr, "Can't get daemon pid\n");
+      exit(EXIT_FAILURE);
+    }
+    if (kill(pid, SIGTERM) == -1) {
+      perror("kill");
+      exit(EXIT_FAILURE);
+    }
+    exit(EXIT_SUCCESS);
+  }
+
+  // Open logger
+  openlog("cmds", LOG_PID, LOG_DAEMON);
+  switch (fork()) {
+    case -1:
+      quit("fork");
+    case 0:
+      // create the daemon
+      create_daemon();
+      break;
+    default:
+      /* alarm(5); */
+      exit(EXIT_SUCCESS);
+  }
 
   exit(EXIT_SUCCESS);
 }
 
 // AUXILIARY FUNCS
+
+bool isRunning(void) {
+  return shm_open(DAEMON_PID_SHM, O_RDONLY, S_IRUSR) != -1;
+}
+
+void create_daemon(void) {
+  if (setsid() == -1) {
+    quit("setsid");
+  }
+  //ignore signals
+
+  switch (fork()) {
+    case -1:
+      quit("fork2");
+    case 0:
+      // daemon
+      if (chdir("/") == -1) {
+        quit("chdir");
+      }
+
+      umask(0);
+
+      int fdnull = open("/dev/null", O_RDWR);
+      if (fdnull == -1) {
+        quit("open");
+      }
+      if (dup2(fdnull, STDIN_FILENO) == -1) {
+        quit("dup2");
+      }
+      if (dup2(fdnull, STDOUT_FILENO) == -1) {
+        quit("dup2");
+      }
+      if (dup2(fdnull, STDERR_FILENO) == -1) {
+        quit("dup2");
+      }
+      if (close(fdnull) == -1) {
+        quit("close");
+      }
+      if (store_dpid() == -1) {
+        quit("store_dpid");
+      }
+      struct sigaction action;
+      action.sa_handler = handler;
+      action.sa_flags = 0;
+
+      if (sigfillset(&action.sa_mask) == -1) {
+        perror("sigfillset");
+        exit(EXIT_FAILURE);
+      }
+
+      if (sigaction(SIGINT, &action, NULL) == -1) {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+      }
+      if (sigaction(SIGQUIT, &action, NULL) == -1) {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+      }
+      listen();
+      exit(EXIT_SUCCESS);
+    default:
+      /* alarm(5); */
+      exit(EXIT_SUCCESS);
+  }
+}
+
+pid_t store_dpid(void) {
+  int shm_fd = shm_open(DAEMON_PID_SHM, O_RDWR | O_CREAT | O_EXCL,
+                          S_IRUSR | S_IWUSR);
+  if (shm_fd == -1) {
+    return -1;
+  }
+  if (ftruncate(shm_fd, sizeof(pid_t)) == -1) {
+    return -1;
+  }
+
+  pid_t *shm_pid = mmap(NULL, sizeof(pid_t), PROT_WRITE, MAP_SHARED, shm_fd, 0);
+  if (shm_pid == MAP_FAILED) {
+    return -1;
+  }
+
+  *shm_pid = getpid();
+
+  return *shm_pid;
+}
+
+pid_t get_dpid(void) {
+  int shm_fd = shm_open(DAEMON_PID_SHM, O_RDONLY, S_IRUSR);
+  if (shm_fd == -1) {
+    return -1;
+  }
+
+  pid_t *shm_pid = mmap(NULL, sizeof(pid_t), PROT_READ, MAP_SHARED, shm_fd, 0);
+  if (shm_pid == MAP_FAILED) {
+    return -1;
+  }
+
+  return *shm_pid;
+}
 
 /**
  * @function  cleanup
@@ -77,23 +240,17 @@ void cleanup(void) {
         pthread_cancel(rnr.th);
         pthread_join(rnr.th, NULL);
         kill(rnr.clt.pid, SIG_FAILURE);
-        struct timespec end;
-        if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
-          perror("clock_gettime");
-          exit(EXIT_FAILURE);
-        }
-        if (end.tv_nsec < rnr.start_t.tv_nsec) {
-          --end.tv_sec;
-          end.tv_nsec += 1000000000;
-        }
-        time_t sec = end.tv_sec - rnr.start_t.tv_sec;
-        long nsec = end.tv_nsec - rnr.start_t.tv_nsec;
-
-        long diff_ms = sec * 1000 + nsec / 1000000;
-        printf("- Killed client[%d] connected for %ldms\n", rnr.clt.pid, diff_ms);
+        syslog(LOG_INFO, "[CmdS] - Killed client[%d]", rnr.clt.pid);
       }
     }
   }
+  for (int i = 0; i < sysconf(_SC_OPEN_MAX); i++) {
+    if (close(i) == -1 && errno == EBADF) {
+      // stop if the file descriptor i is invalid
+      break;
+    }
+  }
+  closelog();
   if (lin != NULL) {
     linker_dispose(&lin);
   }
@@ -116,6 +273,7 @@ void quit(const char *fmt, ...) {
 
   // format with error code
   fprintf(stderr, "Server quit: %s [%s]\n", buf, err);
+  syslog(LOG_ERR, "[CmdS] Server quit: %s [%s]", buf, err);
   va_end(args_list);
 
   // shutdown server
@@ -124,38 +282,13 @@ void quit(const char *fmt, ...) {
 }
 
 /**
- * @function  setup_signals
- * @abstract  Setup program behaviour regarding signals
- */
-void setup_signals(void) {
-  struct sigaction action;
-  action.sa_handler = handler;
-  action.sa_flags = 0;
-
-  if (sigfillset(&action.sa_mask) == -1) {
-    perror("sigfillset");
-    exit(EXIT_FAILURE);
-  }
-
-  if (sigaction(SIGINT, &action, NULL) == -1) {
-    perror("sigaction");
-    exit(EXIT_FAILURE);
-  }
-  if (sigaction(SIGQUIT, &action, NULL) == -1) {
-    perror("sigaction");
-    exit(EXIT_FAILURE);
-  }
-}
-
-/**
  * @function  listen
  * @abstract  Main loop of the program, listen for requests
  */
 void listen(void) {
-  lin = linker_init(SHM_NAME);
+  lin = linker_init(LINKER_SHM);
   if (lin == NULL) {
-    fprintf(stderr, "Error: Couldn't create linker.\n");
-    exit(EXIT_FAILURE);
+    quit("linker_init");
   }
 
   struct runner rnrs[CAPACITY];
@@ -169,7 +302,7 @@ void listen(void) {
 
   client c;
   while (linker_pop(lin, &c) == 0) {
-    printf("Popped request from [%d]\n", c.pid);
+    syslog(LOG_INFO, "[CmdS] Popped request from [%d]", c.pid);
 
     bool found = false;
 
@@ -187,7 +320,6 @@ void listen(void) {
       }
     }
   }
-  printf("%d\n", __LINE__);
 }
 
 /**
@@ -219,30 +351,35 @@ void start_th(size_t i, client c) {
  * @param     r       the runner associated to the thread
  */
 void *runner_routine(struct runner *r) {
+  errno = 0;
   if (clock_gettime(CLOCK_REALTIME, &r->start_t) == -1) {
-    perror("clock_gettime");
+    syslog(LOG_ERR, "[CmdS] [%zu] clock_gettime: %s", r->id, strerror(errno));
+    r->running = false;
     exit(EXIT_FAILURE);
   }
 
-  printf("+ Started client[%d] on thread[%zu]\n", r->clt.pid, r->id);
+  syslog(LOG_INFO, "[CmdS] + Started client[%d] on thread[%zu]", r->clt.pid, r->id);
   char pipe_in[PIPE_LEN] = { 0 };
   snprintf(pipe_in, sizeof(pipe_in), "/tmp/%d_in", r->clt.pid);
   char pipe_out[PIPE_LEN] = { 0 };
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", r->clt.pid);
 
   if (chdir(r->clt.working_dir) == -1) {
-    perror("chdir");
+    syslog(LOG_ERR, "[CmdS] [%zu] chdir: %s", r->id, strerror(errno));
+    r->running = false;
     exit(EXIT_FAILURE);
   }
 
   int fd_in = open(pipe_in, O_RDONLY);
   if (fd_in == -1) {
-    perror("open in");
+    syslog(LOG_ERR, "[CmdS] [%zu] open: %s", r->id, strerror(errno));
+    r->running = false;
     exit(EXIT_FAILURE);
   }
   struct stat st;
   if (fstat(fd_in, &st) == -1) {
-    perror("fstat");
+    syslog(LOG_ERR, "[CmdS] [%zu] fstat: %s", r->id, strerror(errno));
+    r->running = false;
     exit(EXIT_FAILURE);
   }
   ssize_t blksize_pipe_in = st.st_blksize;
@@ -255,34 +392,38 @@ void *runner_routine(struct runner *r) {
     if (buf_in[strlen(buf_in) - 1] == '\n') {
       buf_in[strlen(buf_in) - 1] = 0;
     }
-    printf("[%zu] received cmd:%s from [%d]\n",r->id, buf_in, r->clt.pid);
+    syslog(LOG_INFO, "[CmdS] [%zu] received cmd:%s from [%d]",r->id, buf_in, r->clt.pid);
     char *argv[count_args(buf_in) + 1];
     char fmt_buf[strlen(buf_in) + 1];
     int status, fd_out;
     struct timespec start;
     if (clock_gettime(CLOCK_REALTIME, &start) == -1) {
-      perror("clock_gettime");
+      syslog(LOG_ERR, "[CmdS] [%zu] clock_gettime: %s", r->id, strerror(errno));
+      r->running = false;
       exit(EXIT_FAILURE);
     }
 
     // Fork / Exec
     switch (fork()) {
       case -1:
-        perror("fork");
-        break;
-
+        syslog(LOG_ERR, "[CmdS] [%zu] fork: %s", r->id, strerror(errno));
+        r->running = false;
+        exit(EXIT_FAILURE);
      case 0:
         fd_out = open(pipe_out, O_WRONLY);
         if (fd_out == -1) {
-          perror("open");
+          syslog(LOG_ERR, "[CmdS] [%zu] open: %s", r->id, strerror(errno));
+          r->running = false;
           exit(EXIT_FAILURE);
         }
         if (dup2(fd_out, STDOUT_FILENO) == -1) {
-          perror("dup2");
+          syslog(LOG_ERR, "[CmdS] [%zu] dup2: %s", r->id, strerror(errno));
+          r->running = false;
           exit(EXIT_FAILURE);
         }
         if (close(fd_out) == -1) {
-          perror("close");
+        syslog(LOG_ERR, "[CmdS] [%zu] close: %s", r->id, strerror(errno));
+        r->running = false;
           exit(EXIT_FAILURE);
         }
 
@@ -290,7 +431,8 @@ void *runner_routine(struct runner *r) {
 
         execvp(argv[0], argv);
 
-        perror("execvp");
+        syslog(LOG_ERR, "[CmdS] [%zu] execvp: %s", r->id, strerror(errno));
+        r->running = false;
         exit(EXIT_FAILURE);
       default:
         wait(&status);
@@ -300,16 +442,19 @@ void *runner_routine(struct runner *r) {
 
     // Checking if exec was successful
     if (WEXITSTATUS(status) == EXIT_FAILURE) {
-      fprintf(stderr, "thread[%zu]: Failed to execute cmd: %s\nDisconnecting client[%d]\n",
-        r->id, buf_in, r->clt.pid);
+      syslog(LOG_ERR, "[CmdS] [%zu] Failed to execute cmd: [%s]",
+        r->id, buf_in);
       if (kill(r->clt.pid, SIG_FAILURE)) {
-        perror("kill");
+        syslog(LOG_ERR, "[CmdS] [%zu] clock_gettime: %s", r->id, strerror(errno));
+        r->running = false;
+        exit(EXIT_FAILURE);
       }
       break;
     } else {
       struct timespec end;
       if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
-        perror("clock_gettime");
+        syslog(LOG_ERR, "[CmdS] [%zu] clock_gettime: %s", r->id, strerror(errno));
+        r->running = false;
         exit(EXIT_FAILURE);
       }
       if (end.tv_nsec < start.tv_nsec) {
@@ -320,7 +465,7 @@ void *runner_routine(struct runner *r) {
       long nsec = end.tv_nsec - start.tv_nsec;
 
       long diff_ms = sec * 1000 + nsec / 1000000;
-      printf("[%zu] Finnished executing cmd: [%s] for client[%d] in %ldms\n",
+      syslog(LOG_INFO, "[CmdS] [%zu] Finnished executing cmd: [%s] for client[%d] in %ldms",
         r->id, buf_in, r->clt.pid, diff_ms);
       for (int i = 0; i < blksize_pipe_in; i++)
       buf_in[i] = 0;
@@ -329,7 +474,8 @@ void *runner_routine(struct runner *r) {
 
   struct timespec end;
   if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
-    perror("clock_gettime");
+    syslog(LOG_ERR, "[CmdS] [%zu] clock_gettime: %s", r->id, strerror(errno));
+    r->running = false;
     exit(EXIT_FAILURE);
   }
   if (end.tv_nsec < r->start_t.tv_nsec) {
@@ -340,7 +486,7 @@ void *runner_routine(struct runner *r) {
   long nsec = end.tv_nsec - r->start_t.tv_nsec;
 
   long diff_ms = sec * 1000 + nsec / 1000000;
-  printf("- Stopped client[%d] on thread[%zu] connection lasted: %ldms\n",
+  syslog(LOG_INFO, "[CmdS] - Stopped client[%d] on thread[%zu] connection lasted: %ldms",
     r->clt.pid, r->id, diff_ms);
   r->running = false;
 
@@ -402,10 +548,10 @@ void fmt_args(const char *str, char *argv[], char *buf) {
  * @param     signum    signal received
  */
 void handler(int signum) {
-  if (signum < 0) {
-    quit("Wrong signal number: %d\n", signum);
+  if (signum != SIGTERM) {
+    quit("wrong signal [%d]", signum);
   }
+  syslog(LOG_INFO, "[CmdS] Daemon Stopped");
   cleanup();
-  printf("Shuting down server [%d]\n", signum);
   exit(EXIT_SUCCESS);
 }
