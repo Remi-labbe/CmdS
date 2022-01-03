@@ -16,15 +16,15 @@ void handler(int signum);
 
 void help(void) {
   printf("***\nUsage:\n");
-  printf("./client\n");
-  printf("cmds>\ncmd arg1 ... argN\n");
+  printf("./cmdc\n");
+  printf(">\ncmd arg1 ... argN\n");
   exit(EXIT_SUCCESS);
 }
 
 int main (int argc, char **argv) {
   if (argc > 1) {
       help();
-      exit(EXIT_FAILURE)  ;
+      exit(EXIT_FAILURE);
   }
   setup_signals();
   pid_t pid = getpid();
@@ -166,6 +166,10 @@ void setup_signals(void) {
     exit(EXIT_FAILURE);
   }
   if (sigaction(SIGINT, &action, NULL) == -1) {
+    perror("sigaction");
+    exit(EXIT_FAILURE);
+  }
+  if (sigaction(SIGQUIT, &action, NULL) == -1) {
     perror("sigaction");
     exit(EXIT_FAILURE);
   }
