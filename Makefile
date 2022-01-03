@@ -1,4 +1,5 @@
 tools_dir=tools/
+doc_dir=doc/
 
 CC = gcc
 
@@ -13,6 +14,8 @@ OBJS = $(tools_dir)linker.o
 
 EXECS = cmdc cmds
 
+DOCS = $(doc_dir)Manuel_Technique.pdf $(doc_dir)Manuel_Utilisateur.pdf
+
 all: $(EXECS)
 
 linker.o: linker.h config.h linker.c
@@ -23,8 +26,16 @@ cmdc: config.h client.c $(tools_dir)linker.o
 cmds: config.h server.c $(tools_dir)linker.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
+$(doc_dir)Manuel_Technique.pdf:
+	pandoc --pdf-engine=pdflatex -o $@ $(doc_dir)Manuel_Technique.md
+
+$(doc_dir)Manuel_Utilisateur.pdf:
+	pandoc --pdf-engine=pdflatex -o $@ $(doc_dir)Manuel_Utilisateur.md
+
+doc: $(DOCS)
+
 clean:
-	$(RM) $(EXECS) $(OBJS)
+	$(RM) $(EXECS) $(OBJS) $(DOCS)
 
 tar:
 	$(MAKE) clean
