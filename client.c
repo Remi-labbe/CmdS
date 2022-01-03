@@ -17,7 +17,7 @@ void handler(int signum);
 void help(void) {
   printf("***\nUsage:\n");
   printf("./cmdc\n");
-  printf(">\ncmd arg1 ... argN\n");
+  printf("CmdC>\ncmd arg1 ... argN\n");
   exit(EXIT_SUCCESS);
 }
 
@@ -177,13 +177,14 @@ void setup_signals(void) {
 
 // signal handler
 void handler(int signum) {
-  if (signum < 0) {
-    fprintf(stderr, "Wrong signal number: %d\n", signum);
-    exit(EXIT_FAILURE);
+  if (signum == SIGINT || signum == SIGQUIT) {
+    printf("Disconnecting...\n");
+    exit(EXIT_SUCCESS);
   }
   if (signum == SIG_FAILURE) {
     fprintf(stderr, "Request Canceled.\n");
     exit(EXIT_FAILURE);
   }
-  exit(EXIT_SUCCESS);
+  fprintf(stderr, "Wrong signal received [%d].\n", signum);
+  exit(EXIT_FAILURE);
 }
