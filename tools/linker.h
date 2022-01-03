@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
-#include "config.h"
 
 #ifndef WD_LEN
 #define WD_LEN 512

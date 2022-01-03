@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "linker.h"
+#include "config.h"
 
 struct linker {
   const char *shm_name;
