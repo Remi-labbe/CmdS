@@ -17,4 +17,8 @@
 #define SIG_FAILURE SIGUSR1
 #endif
 
+#ifndef SIG_SUCCESS
+#define SIG_SUCCESS SIGUSR2
+#endif
+
 #endif
