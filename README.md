@@ -1,2 +1,1 @@
-CmdS
-Command Launcher
+# Command Launcher
