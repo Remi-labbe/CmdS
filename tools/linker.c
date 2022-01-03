@@ -8,13 +8,13 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
-#include "linker.h"
 #include "config.h"
+#include "linker.h"
 
 struct linker {
   const char *shm_name;
@@ -51,12 +51,13 @@ linker *linker_init(const char *name) {
     return NULL;
   }
 
-  if (ftruncate(fd, (off_t) shm_size) == -1) {
+  if (ftruncate(fd, (off_t)shm_size) == -1) {
     perror("ftruncate");
     return NULL;
   }
 
-  struct linker *lp = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  struct linker *lp =
+      mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (lp == NULL) {
     perror("mmap");
@@ -105,7 +106,8 @@ linker *linker_connect(const char *name) {
     return NULL;
   }
 
-  struct linker *lp = mmap(NULL, (size_t) ss.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  struct linker *lp =
+      mmap(NULL, (size_t)ss.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (lp == MAP_FAILED) {
     perror("mmap");
@@ -186,4 +188,3 @@ void linker_dispose(linker **linker_p) {
   _cleanup(*linker_p);
   *linker_p = NULL;
 }
-

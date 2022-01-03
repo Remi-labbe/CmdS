@@ -1,21 +1,21 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/syslog.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <fcntl.h>
-#include <time.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <semaphore.h>
-#include <sys/mman.h>
-#include "tools/linker.h"
 #include "tools/config.h"
+#include "tools/linker.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/syslog.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
 #ifndef DAEMON_PID_SHM
 #define DAEMON_PID_SHM "/cmds_daemon_pid"
@@ -125,10 +125,10 @@ int main(int argc, char **argv) {
   // ignore all signals
   sigset_t set;
   if (sigfillset(&set) == -1) {
-      quit("sigfillset");
+    quit("sigfillset");
   }
   if (sigprocmask(SIG_SETMASK, &set, NULL) == -1) {
-      quit("sigprocmask");
+    quit("sigprocmask");
   }
   pid_t ppid = getpid();
   struct sigaction action;
@@ -136,32 +136,32 @@ int main(int argc, char **argv) {
   action.sa_flags = 0;
   // fork once
   switch (fork()) {
-    case -1:
-      quit("fork");
-    case 0:
-      create_daemon(ppid);
-      break;
-    default:
-      // father waits for child signal SUCCESS/FAILURE
-      if (sigfillset(&action.sa_mask) == -1) {
-        quit("sigfillset");
-      }
-      if (sigaction(SIG_SUCCESS, &action, NULL) == -1) {
-        quit("sigfillset");
-      }
-      if (sigaction(SIG_FAILURE, &action, NULL) == -1) {
-        quit("sigfillset");
-      }
-      if (sigdelset(&set, SIG_FAILURE) == -1) {
-          quit("sigdelset");
-      }
-      if (sigdelset(&set, SIG_SUCCESS) == -1) {
-          quit("sigdelset");
-      }
-      if (sigprocmask(SIG_SETMASK, &set, NULL) == -1) {
-          quit("sigprocmask");
-      }
-      sigsuspend(&set);
+  case -1:
+    quit("fork");
+  case 0:
+    create_daemon(ppid);
+    break;
+  default:
+    // father waits for child signal SUCCESS/FAILURE
+    if (sigfillset(&action.sa_mask) == -1) {
+      quit("sigfillset");
+    }
+    if (sigaction(SIG_SUCCESS, &action, NULL) == -1) {
+      quit("sigfillset");
+    }
+    if (sigaction(SIG_FAILURE, &action, NULL) == -1) {
+      quit("sigfillset");
+    }
+    if (sigdelset(&set, SIG_FAILURE) == -1) {
+      quit("sigdelset");
+    }
+    if (sigdelset(&set, SIG_SUCCESS) == -1) {
+      quit("sigdelset");
+    }
+    if (sigprocmask(SIG_SETMASK, &set, NULL) == -1) {
+      quit("sigprocmask");
+    }
+    sigsuspend(&set);
   }
   exit(EXIT_SUCCESS);
 }
@@ -173,8 +173,8 @@ bool isRunning(void) {
 }
 
 pid_t store_dpid(void) {
-  int shm_fd = shm_open(DAEMON_PID_SHM, O_RDWR | O_CREAT | O_EXCL,
-    S_IRUSR | S_IWUSR);
+  int shm_fd =
+      shm_open(DAEMON_PID_SHM, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
   if (shm_fd == -1) {
     return -1;
   }
@@ -217,105 +217,104 @@ void create_daemon(pid_t ppid) {
 
   // fork again to ensure the daemon does not get a tty back
   switch (fork()) {
-    case -1:
+  case -1:
+    if (kill(ppid, SIG_FAILURE) == -1) {
+      quit("kill");
+    }
+    quit("second fork");
+  case 0:
+    // reset mask to 0
+    umask(0);
+
+    // change directory to root(/)
+    if (chdir("/") == -1) {
       if (kill(ppid, SIG_FAILURE) == -1) {
         quit("kill");
       }
-      quit("second fork");
-    case 0:
-      // reset mask to 0
-      umask(0);
+      quit("chdir");
+    }
 
-      // change directory to root(/)
-      if (chdir("/") == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("chdir");
+    // redirect stdin/out/err to /dev/null
+    int fdnull = open("/dev/null", O_RDWR);
+    if (fdnull == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
+      quit("open");
+    }
+    if (dup2(fdnull, STDIN_FILENO) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
+      }
+      quit("dup2");
+    }
+    if (dup2(fdnull, STDOUT_FILENO) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
+      }
+      quit("dup2");
+    }
+    if (dup2(fdnull, STDERR_FILENO) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
+      }
+      quit("dup2");
+    }
+    if (close(fdnull) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
+      }
+      quit("close");
+    }
+    if (store_dpid() == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
+      }
+      quit("store_dpid");
+    }
+    struct sigaction action;
+    action.sa_handler = handler;
+    action.sa_flags = 0;
 
-      // redirect stdin/out/err to /dev/null
-      int fdnull = open("/dev/null", O_RDWR);
-      if (fdnull == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("open");
+    if (sigfillset(&action.sa_mask) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
-      if (dup2(fdnull, STDIN_FILENO) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("dup2");
+      quit("sigfillset");
+    }
+    if (sigaction(SIGTERM, &action, NULL) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
-      if (dup2(fdnull, STDOUT_FILENO) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("dup2");
+      quit("sigaction");
+    }
+    sigset_t masked;
+    if (sigfillset(&masked) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
-      if (dup2(fdnull, STDERR_FILENO) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("dup2");
+      quit("sigfillset");
+    }
+    if (sigdelset(&masked, SIGTERM) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
-      if (close(fdnull) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("close");
+      quit("sigdelset");
+    }
+    if (sigprocmask(SIG_SETMASK, &masked, NULL) == -1) {
+      if (kill(ppid, SIG_FAILURE) == -1) {
+        quit("kill");
       }
-      if (store_dpid() == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("store_dpid");
-      }
-      struct sigaction action;
-      action.sa_handler = handler;
-      action.sa_flags = 0;
-
-      if (sigfillset(&action.sa_mask) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("sigfillset");
-      }
-      if (sigaction(SIGTERM, &action, NULL) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("sigaction");
-      }
-      sigset_t masked;
-      if (sigfillset(&masked) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("sigfillset");
-      }
-      if (sigdelset(&masked, SIGTERM) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("sigdelset");
-      }
-      if (sigprocmask(SIG_SETMASK, &masked, NULL) == -1) {
-        if (kill(ppid, SIG_FAILURE) == -1) {
-          quit("kill");
-        }
-        quit("sigprocmask");
-      }
-      daemon_main(ppid);
-      exit(EXIT_SUCCESS);
-    default:
-      // kill the first child
-      // this ensure the child (aka the daemon) ppid is 1 (init)
-      exit(EXIT_SUCCESS);
+      quit("sigprocmask");
+    }
+    daemon_main(ppid);
+    exit(EXIT_SUCCESS);
+  default:
+    // kill the first child
+    // this ensure the child (aka the daemon) ppid is 1 (init)
+    exit(EXIT_SUCCESS);
   }
 }
-
 
 /**
  * @function  cleanup
@@ -352,7 +351,7 @@ void quit(const char *fmt, ...) {
   // print args into buffer
   va_list args_list;
   va_start(args_list, fmt);
-  char buf[1024] = { 0 };
+  char buf[1024] = {0};
   vsnprintf(buf, sizeof(buf), fmt, args_list);
   va_end(args_list);
 
@@ -432,7 +431,8 @@ void start_th(size_t i, client c) {
     quit("pthread_attr_setdetachstate: %s", strerror(r));
   }
   if ((r = pthread_create(&runner_pool[i].th, &attr,
-          (void *(*)(void *)) runner_routine, &runner_pool[i])) != 0) {
+                          (void *(*)(void *))runner_routine,
+                          &runner_pool[i])) != 0) {
     quit("pthread_create: %s", strerror(r));
   }
 }
@@ -450,10 +450,11 @@ void *runner_routine(struct runner *r) {
     exit(EXIT_FAILURE);
   }
 
-  syslog(LOG_INFO, "[cmds] + Started client[%d] on thread[%zu]", r->clt.pid, r->id);
-  char pipe_in[PIPE_LEN] = { 0 };
+  syslog(LOG_INFO, "[cmds] + Started client[%d] on thread[%zu]", r->clt.pid,
+         r->id);
+  char pipe_in[PIPE_LEN] = {0};
   snprintf(pipe_in, sizeof(pipe_in), "/tmp/%d_in", r->clt.pid);
-  char pipe_out[PIPE_LEN] = { 0 };
+  char pipe_out[PIPE_LEN] = {0};
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", r->clt.pid);
 
   if (chdir(r->clt.working_dir) == -1) {
@@ -479,12 +480,13 @@ void *runner_routine(struct runner *r) {
   char buf_in[blksize_pipe_in];
 
   ssize_t r_in;
-  while ((r_in = read(fd_in, buf_in, (size_t) blksize_pipe_in)) > 0) {
+  while ((r_in = read(fd_in, buf_in, (size_t)blksize_pipe_in)) > 0) {
     // Removing line break at the end of input
     if (buf_in[strlen(buf_in) - 1] == '\n') {
       buf_in[strlen(buf_in) - 1] = 0;
     }
-    syslog(LOG_INFO, "[cmds] [%zu] received cmd:%s from [%d]",r->id, buf_in, r->clt.pid);
+    syslog(LOG_INFO, "[cmds] [%zu] received cmd:%s from [%d]", r->id, buf_in,
+           r->clt.pid);
     char *argv[count_args(buf_in) + 1];
     char fmt_buf[strlen(buf_in) + 1];
     int status, fd_out;
@@ -497,47 +499,47 @@ void *runner_routine(struct runner *r) {
 
     // Fork / Exec
     switch (fork()) {
-      case -1:
-        syslog(LOG_ERR, "[cmds] [%zu] fork: %s", r->id, strerror(errno));
+    case -1:
+      syslog(LOG_ERR, "[cmds] [%zu] fork: %s", r->id, strerror(errno));
+      r->running = false;
+      exit(EXIT_FAILURE);
+    case 0:
+      fd_out = open(pipe_out, O_WRONLY);
+      if (fd_out == -1) {
+        syslog(LOG_ERR, "[cmds] [%zu] open: %s", r->id, strerror(errno));
         r->running = false;
         exit(EXIT_FAILURE);
-     case 0:
-        fd_out = open(pipe_out, O_WRONLY);
-        if (fd_out == -1) {
-          syslog(LOG_ERR, "[cmds] [%zu] open: %s", r->id, strerror(errno));
-          r->running = false;
-          exit(EXIT_FAILURE);
-        }
-        if (dup2(fd_out, STDOUT_FILENO) == -1) {
-          syslog(LOG_ERR, "[cmds] [%zu] dup2: %s", r->id, strerror(errno));
-          r->running = false;
-          exit(EXIT_FAILURE);
-        }
-        if (close(fd_out) == -1) {
+      }
+      if (dup2(fd_out, STDOUT_FILENO) == -1) {
+        syslog(LOG_ERR, "[cmds] [%zu] dup2: %s", r->id, strerror(errno));
+        r->running = false;
+        exit(EXIT_FAILURE);
+      }
+      if (close(fd_out) == -1) {
         syslog(LOG_ERR, "[cmds] [%zu] close: %s", r->id, strerror(errno));
         r->running = false;
-          exit(EXIT_FAILURE);
-        }
-
-        fmt_args(buf_in, argv, fmt_buf);
-
-        execvp(argv[0], argv);
-
-        syslog(LOG_ERR, "[cmds] [%zu] execvp: %s", r->id, strerror(errno));
-        r->running = false;
         exit(EXIT_FAILURE);
-      default:
-        wait(&status);
-        break;
-    }
+      }
 
+      fmt_args(buf_in, argv, fmt_buf);
+
+      execvp(argv[0], argv);
+
+      syslog(LOG_ERR, "[cmds] [%zu] execvp: %s", r->id, strerror(errno));
+      r->running = false;
+      exit(EXIT_FAILURE);
+    default:
+      wait(&status);
+      break;
+    }
 
     // Checking if exec was successful
     if (WEXITSTATUS(status) == EXIT_FAILURE) {
-      syslog(LOG_ERR, "[cmds] [%zu] Failed to execute cmd: [%s]",
-        r->id, buf_in);
+      syslog(LOG_ERR, "[cmds] [%zu] Failed to execute cmd: [%s]", r->id,
+             buf_in);
       if (kill(r->clt.pid, SIG_FAILURE)) {
-        syslog(LOG_ERR, "[cmds] [%zu] clock_gettime: %s", r->id, strerror(errno));
+        syslog(LOG_ERR, "[cmds] [%zu] clock_gettime: %s", r->id,
+               strerror(errno));
         r->running = false;
         exit(EXIT_FAILURE);
       }
@@ -545,7 +547,8 @@ void *runner_routine(struct runner *r) {
     } else {
       struct timespec end;
       if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
-        syslog(LOG_ERR, "[cmds] [%zu] clock_gettime: %s", r->id, strerror(errno));
+        syslog(LOG_ERR, "[cmds] [%zu] clock_gettime: %s", r->id,
+               strerror(errno));
         r->running = false;
         exit(EXIT_FAILURE);
       }
@@ -557,10 +560,12 @@ void *runner_routine(struct runner *r) {
       long nsec = end.tv_nsec - start.tv_nsec;
 
       long diff_ms = sec * 1000 + nsec / 1000000;
-      syslog(LOG_INFO, "[cmds] [%zu] Finnished executing cmd: [%s] for client[%d] in %ldms",
-        r->id, buf_in, r->clt.pid, diff_ms);
+      syslog(
+          LOG_INFO,
+          "[cmds] [%zu] Finnished executing cmd: [%s] for client[%d] in %ldms",
+          r->id, buf_in, r->clt.pid, diff_ms);
       for (int i = 0; i < blksize_pipe_in; i++)
-      buf_in[i] = 0;
+        buf_in[i] = 0;
     }
   }
 
@@ -578,8 +583,9 @@ void *runner_routine(struct runner *r) {
   long nsec = end.tv_nsec - r->start_t.tv_nsec;
 
   long diff_ms = sec * 1000 + nsec / 1000000;
-  syslog(LOG_INFO, "[cmds] - Stopped client[%d] on thread[%zu] connection lasted: %ldms",
-    r->clt.pid, r->id, diff_ms);
+  syslog(LOG_INFO,
+         "[cmds] - Stopped client[%d] on thread[%zu] connection lasted: %ldms",
+         r->clt.pid, r->id, diff_ms);
   r->running = false;
 
   return NULL;
@@ -595,15 +601,15 @@ size_t count_args(const char *str) {
   size_t i = 0;
   size_t count = 0;
   bool inw = true;
-  for(i = 0; str[i]; i++) {
-    if(str[i] == ' ' && inw) {
+  for (i = 0; str[i]; i++) {
+    if (str[i] == ' ' && inw) {
       count++;
       inw = false;
     } else if (str[i] != ' ') {
       inw = true;
     }
   }
-  if(i > 0)
+  if (i > 0)
     count++;
   return count;
 }

@@ -1,15 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
+#include "tools/config.h"
+#include "tools/linker.h"
 #include <fcntl.h>
 #include <signal.h>
-#include "tools/linker.h"
-#include "tools/config.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define STRMEMCPY(dest, src) \
-    memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
+#define STRMEMCPY(dest, src)                                                   \
+  memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
 
 void setup_signals(void);
 void handler(int signum);
@@ -21,14 +21,14 @@ void help(void) {
   exit(EXIT_SUCCESS);
 }
 
-int main (int argc, char **argv) {
+int main(int argc, char **argv) {
   if (argc > 1) {
-      help();
-      exit(EXIT_FAILURE);
+    help();
+    exit(EXIT_FAILURE);
   }
   setup_signals();
   pid_t pid = getpid();
-  char wd_buf[WD_LEN] = { 0 };
+  char wd_buf[WD_LEN] = {0};
   if (getcwd(wd_buf, WD_LEN) == NULL) {
     perror("getcwd");
     exit(EXIT_FAILURE);
@@ -38,9 +38,9 @@ int main (int argc, char **argv) {
   c.pid = pid;
   STRMEMCPY(c.working_dir, wd_buf);
   // creates pipes to communicate with server
-  char pipe_in[PIPE_LEN] = { 0 };
+  char pipe_in[PIPE_LEN] = {0};
   snprintf(pipe_in, sizeof(pipe_in), "/tmp/%d_in", pid);
-  char pipe_out[PIPE_LEN] = { 0 };
+  char pipe_out[PIPE_LEN] = {0};
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", pid);
 
   // Create pipe to send data
@@ -123,7 +123,7 @@ int main (int argc, char **argv) {
 
     // Read result
     ssize_t r_out;
-    while((r_out = read(fd_out, buf_out, (size_t) blksize_pipe_out)) > 0) {
+    while ((r_out = read(fd_out, buf_out, (size_t)blksize_pipe_out)) > 0) {
       char *b = buf_out;
       do {
         ssize_t w = r_out > blksize_std_out ? blksize_std_out : r_out;
