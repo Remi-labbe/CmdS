@@ -29,7 +29,7 @@ make
 
 # Execution
 
-> l'executable `cmds` controle le demon, il accepte 1 argument qui peut prendre 2
+l'executable `cmds` controle le demon, il accepte 1 argument qui peut prendre 2
  valeurs.
 
 - Pour lancer le demon:
@@ -42,7 +42,7 @@ make
 ./cmds stop
 ```
 
-> Un client peut etre cree via l'executable `cmdc`, il presentera ensuite un
+Un client peut etre cree via l'executable `cmdc`, il presentera ensuite un
  "prompt" en attente des requetes. Ce client peut ensuite etre ferme avec Ctrl+D
   ou Ctrl+C.
 
@@ -51,5 +51,5 @@ make
 ./cmdc
 ```
 
-> Ces differentes informations sont aussi disponibles et affichees si un ou des
+Ces differentes informations sont aussi disponibles et affichees si un ou des
  arguments invalides sont presents dans la commande.
