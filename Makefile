@@ -38,5 +38,6 @@ clean:
 	$(RM) $(EXECS) $(OBJS) $(DOCS)
 
 tar:
-	$(MAKE) clean
-	tar -zcf "$(CURDIR).tar.gz" client.c tools/* server.c Makefile
+	$(RM) $(EXECS) $(OBJS)
+	$(MAKE) doc
+	tar -zcf "$(CURDIR).tar.gz" client.c server.c tools/* Makefile doc/*.pdf

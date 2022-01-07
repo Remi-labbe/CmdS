@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define STRMEMCPY(dest, src)                                                   \
+#define STRMEMCPY(dest, src) \
   memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
 
 void setup_signals(void);
