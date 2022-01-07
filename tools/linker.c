@@ -26,6 +26,11 @@ struct linker {
   char buffer[];
 };
 
+/**
+ * @function  _cleanup
+ * @abstract  free the memory and destroy linker's shm
+ * @param   lp    linker pointer
+ */
 static void _cleanup(linker *lp) {
   if (sem_destroy(&lp->mutex) == -1) {
     perror("sem_destroy - mutex");

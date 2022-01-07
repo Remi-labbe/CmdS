@@ -17,14 +17,23 @@
 #include <time.h>
 #include <unistd.h>
 
+/**
+ * @define  DAEMON_PID_SHM    shm's name in which we store the daemon pid
+ */
 #ifndef DAEMON_PID_SHM
 #define DAEMON_PID_SHM "/cmds_daemon_pid"
 #endif
 
+/**
+ * @define  START             string "start"
+ */
 #ifndef START
 #define START "start"
 #endif
 
+/**
+ * #define  STOP              string "stop"
+ */
 #ifndef STOP
 #define STOP "stop"
 #endif
@@ -52,23 +61,84 @@ struct runner {
 /* Functions declarations */
 
 // General server function
+/**
+ * @function  quit
+ * @abstract  Terminate the program in case of error printing infos in args
+ * @param     fmt      format of the error string
+ * @param     ...      args associated to the string
+ */
 void quit(const char *fmt, ...);
+/**
+ * @function  cleanup
+ * @abstract  clean the memory
+ */
 void cleanup(void);
-void daemon_main(pid_t starter_pid);
-
-// daemon handling
-bool isRunning(void);
-pid_t store_dpid(void);
-pid_t get_dpid(void);
-void create_daemon(pid_t ppid);
-
-// Threads related
-void start_th(size_t i, client c);
-void *runner_routine(struct runner *r);
+/**
+ * @function  count_args
+ * @abstract  count words in a string separated by ' '
+ * @param     str       the string in which the function will count words
+ * @result    size_t    the number of word(s)
+ */
 size_t count_args(const char *str);
+/**
+ * @function  fmt_args
+ * @abstract  put a sliced version of the string str in argv
+ * @param     str       the string to slice !Not modified
+ * @param     argv      the array buffer in which we place words
+ * @param     buf       buffer used to keep words separated by null char
+ */
 void fmt_args(const char *str, char *argv[], char *buf);
 
+// daemon handling
+/**
+ * @function  isRunning
+ * @abstract  Checks if daemon is already running
+*/
+bool isRunning(void);
+/**
+ * @function  store_dpid
+ * @abstract  Main loop of the program, listen for requests
+*/
+pid_t store_dpid(void);
+/**
+ * @function  daemon_main
+ * @abstract  Stores the daemon pid in the shm of name DAEMON_PID_SHM
+*/
+pid_t get_dpid(void);
+/**
+ * @function  create_daemon
+ * @abstract  Setup the daemon then start daemon_main
+ * @param     ppid    the starter process pid
+*/
+void create_daemon(pid_t ppid);
+/**
+ * @function  daemon_main
+ * @abstract  Main loop of the program, listen for requests
+ * @param     starter_pid    the starter process pid
+*/
+void daemon_main(pid_t starter_pid);
+
+// Threads related
+/**
+ * @function  start_th
+ * @abstract  Start the ith thread in the runner_pool binding it to the client c
+ * @param     i      index if the runner to start
+ * @param     c      client to bind to the runner
+ */
+void start_th(size_t i, client c);
+/**
+ * @function  runner_routine
+ * @abstract  Routine ran by a thread when it is listening to a client
+ * @param     r       the runner associated to the thread
+ */
+void *runner_routine(struct runner *r);
+
 // Signal Handler
+/**
+ * @function  handler
+ * @abstract  handle signals
+ * @param     signum    signal received
+ */
 void handler(int signum);
 
 /* Global scoped variables */
@@ -77,6 +147,10 @@ static struct runner *runner_pool;
 static linker *lin;
 
 // MAIN
+/**
+ * @function  help
+ * @abstract  show heplp and exit
+ */
 void help(void) {
   printf("***\nUsage:\n");
   printf("./cmds [start|stop]\n");
@@ -316,10 +390,6 @@ void create_daemon(pid_t ppid) {
   }
 }
 
-/**
- * @function  cleanup
- * @abstract  clean the memory
- */
 void cleanup(void) {
   if (runner_pool != NULL) {
     for (size_t i = 0; i < CAPACITY; i++) {
@@ -339,12 +409,6 @@ void cleanup(void) {
   shm_unlink(DAEMON_PID_SHM);
 }
 
-/**
- * @function  quit
- * @abstract  Terminate the program in case of error printing infos in args
- * @param     fmt      format of the error string
- * @param     ...      args associated to the string
- */
 void quit(const char *fmt, ...) {
   const char *err = strerror(errno);
 
@@ -364,10 +428,6 @@ void quit(const char *fmt, ...) {
   exit(EXIT_FAILURE);
 }
 
-/**
- * @function  daemon_main
- * @abstract  Main loop of the program, listen for requests
- */
 void daemon_main(pid_t starter_pid) {
   lin = linker_init(LINKER_SHM);
   if (lin == NULL) {
@@ -413,12 +473,6 @@ void daemon_main(pid_t starter_pid) {
   }
 }
 
-/**
- * @function  start_th
- * @abstract  Start the ith thread in the runner_pool binding it to the client c
- * @param     i      index if the runner to start
- * @param     c      client to bind to the runner
- */
 void start_th(size_t i, client c) {
   memcpy(&runner_pool[i].clt, &c, sizeof(client));
   runner_pool[i].running = true;
@@ -437,11 +491,6 @@ void start_th(size_t i, client c) {
   }
 }
 
-/**
- * @function  runner_routine
- * @abstract  Routine ran by a thread when it is listening to a client
- * @param     r       the runner associated to the thread
- */
 void *runner_routine(struct runner *r) {
   errno = 0;
   if (clock_gettime(CLOCK_REALTIME, &r->start_t) == -1) {
@@ -591,12 +640,6 @@ void *runner_routine(struct runner *r) {
   return NULL;
 }
 
-/**
- * @function  count_args
- * @abstract  count words in a string separated by ' '
- * @param     str       the string in which the function will count words
- * @result    size_t    the number of word(s)
- */
 size_t count_args(const char *str) {
   size_t i = 0;
   size_t count = 0;
@@ -614,13 +657,6 @@ size_t count_args(const char *str) {
   return count;
 }
 
-/**
- * @function  fmt_args
- * @abstract  put a sliced version of the string str in argv
- * @param     str       the string to slice !Not modified
- * @param     argv      the array buffer in which we place words
- * @param     buf       buffer used to keep words separated by null char
- */
 void fmt_args(const char *str, char *argv[], char *buf) {
   memcpy(buf, str, strlen(str) + 1);
 
@@ -639,12 +675,6 @@ void fmt_args(const char *str, char *argv[], char *buf) {
   argv[j] = NULL;
 }
 
-// signal handler
-/**
- * @function  handler
- * @abstract  handle signals
- * @param     signum    signal received
- */
 void handler(int signum) {
   if (signum == SIGTERM) {
     syslog(LOG_INFO, "[cmds] Daemon Stopped");

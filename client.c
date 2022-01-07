@@ -8,12 +8,29 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+/**
+ * @define  STRMEMCPY   function wraper for memcpy
+ */
 #define STRMEMCPY(dest, src) \
   memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
 
+/**
+ * @function  setup_signals
+ * @abstract  setup signal handling, catch them and affect handler
+ */
 void setup_signals(void);
+// Signal Handler
+/**
+ * @function  handler
+ * @abstract  handle signals
+ * @param     signum    signal received
+ */
 void handler(int signum);
 
+/**
+ * @function  help
+ * @abstract  show heplp and exit
+ */
 void help(void) {
   printf("***\nUsage:\n");
   printf("./cmdc\n");
@@ -175,7 +192,6 @@ void setup_signals(void) {
   }
 }
 
-// signal handler
 void handler(int signum) {
   if (signum == SIGINT || signum == SIGQUIT) {
     printf("Disconnecting...\n");
