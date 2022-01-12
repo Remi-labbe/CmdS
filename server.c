@@ -162,7 +162,6 @@ int main(int argc, char **argv) {
     help();
   }
 
-  // test if daemon running
   bool running = isRunning();
   if (TESTOPT(START) && running) {
     fprintf(stderr, "Error: Server is already running.\n");

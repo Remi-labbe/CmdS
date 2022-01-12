@@ -11,7 +11,7 @@
 /**
  * @define  STRMEMCPY   function wraper for memcpy
  */
-#define STRMEMCPY(dest, src) \
+#define STRMEMCPY(dest, src)                                                   \
   memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
 
 /**
@@ -50,25 +50,22 @@ int main(int argc, char **argv) {
     perror("getcwd");
     exit(EXIT_FAILURE);
   }
-  // init client struct
+
   client c;
   c.pid = pid;
   STRMEMCPY(c.working_dir, wd_buf);
-  // creates pipes to communicate with server
+
   char pipe_in[PIPE_LEN] = {0};
   snprintf(pipe_in, sizeof(pipe_in), "/tmp/%d_in", pid);
   char pipe_out[PIPE_LEN] = {0};
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", pid);
 
-  // Create pipe to send data
+
   if (mkfifo(pipe_in, S_IRUSR | S_IWUSR) == -1) {
     perror("mkfifo");
     exit(EXIT_FAILURE);
   }
 
-  // Create pipe to receive data
-
-  // connect to server
   linker *lp = linker_connect(LINKER_SHM);
   if (lp == NULL) {
     fprintf(stderr, "Error: Can't connect to server.\n");
@@ -90,8 +87,6 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  // detect streams size to create buffers
-  // >IN
   struct stat st;
   if (fstat(fd_in, &st) == -1) {
     perror("fstat");
@@ -101,7 +96,6 @@ int main(int argc, char **argv) {
 
   char buf_in[blksize_pipe_in];
 
-  // Prompt
   printf("CmdC>\n");
   ssize_t r_in;
   while ((r_in = read(STDIN_FILENO, buf_in, blksize_pipe_in)) > 0) {
@@ -109,13 +103,11 @@ int main(int argc, char **argv) {
       perror("mkfifo");
       exit(EXIT_FAILURE);
     }
-    // Send cmd
     if (write(fd_in, buf_in, r_in) == -1) {
       perror("write");
       exit(EXIT_FAILURE);
     }
 
-    // Connect to response pipe
     int fd_out = open(pipe_out, O_RDONLY);
     if (fd_out == -1) {
       perror("open in");
@@ -138,7 +130,6 @@ int main(int argc, char **argv) {
 
     char buf_out[blksize_pipe_out];
 
-    // Read result
     ssize_t r_out;
     while ((r_out = read(fd_out, buf_out, (size_t)blksize_pipe_out)) > 0) {
       char *b = buf_out;
@@ -158,7 +149,6 @@ int main(int argc, char **argv) {
       perror("close");
       exit(EXIT_FAILURE);
     }
-    // Prompt
     printf("CmdC>\n");
   }
   if (close(fd_in) == -1) {
