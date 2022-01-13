@@ -93,29 +93,29 @@ void fmt_args(const char *str, char *argv[], char *buf);
 /**
  * @function  isRunning
  * @abstract  Checks if daemon is already running
-*/
+ */
 bool isRunning(void);
 /**
  * @function  store_dpid
  * @abstract  Main loop of the program, listen for requests
-*/
+ */
 pid_t store_dpid(void);
 /**
  * @function  daemon_main
  * @abstract  Stores the daemon pid in the shm of name DAEMON_PID_SHM
-*/
+ */
 pid_t get_dpid(void);
 /**
  * @function  create_daemon
  * @abstract  Setup the daemon then start daemon_main
  * @param     ppid    the starter process pid
-*/
+ */
 void create_daemon(pid_t ppid);
 /**
  * @function  daemon_main
  * @abstract  Main loop of the program, listen for requests
  * @param     starter_pid    the starter process pid
-*/
+ */
 void daemon_main(pid_t starter_pid);
 
 // Threads related

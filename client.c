@@ -60,7 +60,6 @@ int main(int argc, char **argv) {
   char pipe_out[PIPE_LEN] = {0};
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", pid);
 
-
   if (mkfifo(pipe_in, S_IRUSR | S_IWUSR) == -1) {
     perror("mkfifo");
     exit(EXIT_FAILURE);
