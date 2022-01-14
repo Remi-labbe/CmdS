@@ -12,13 +12,6 @@
 #endif
 
 /**
-* @define REQ_BUF_SIZE
-*/
-/* #ifndef REQ_BUF_SIZE */
-/* #define REQ_BUF_SIZE 2048 */
-/* #endif */
-
-/**
 * @typedef struct client
 *         infos attached to a client
 * @field    pid           the client process id
