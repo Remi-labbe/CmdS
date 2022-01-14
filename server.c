@@ -505,11 +505,6 @@ void *runner_routine(struct runner *r) {
   char pipe_out[PIPE_LEN] = {0};
   snprintf(pipe_out, sizeof(pipe_out), "/tmp/%d_out", r->clt.pid);
 
-  if (chdir(r->clt.working_dir) == -1) {
-    syslog(LOG_ERR, "[cmds] [%zu] chdir: %s", r->id, strerror(errno));
-    r->running = false;
-    exit(EXIT_FAILURE);
-  }
 
   int fd_in = open(pipe_in, O_RDONLY);
   if (fd_in == -1) {
@@ -552,6 +547,11 @@ void *runner_routine(struct runner *r) {
       r->running = false;
       exit(EXIT_FAILURE);
     case 0:
+      if (chdir(r->clt.working_dir) == -1) {
+        syslog(LOG_ERR, "[cmds] [%zu] chdir: %s", r->id, strerror(errno));
+        r->running = false;
+        exit(EXIT_FAILURE);
+      }
       fd_out = open(pipe_out, O_WRONLY);
       if (fd_out == -1) {
         syslog(LOG_ERR, "[cmds] [%zu] open: %s", r->id, strerror(errno));
