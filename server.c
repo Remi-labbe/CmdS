@@ -452,7 +452,7 @@ void daemon_main(pid_t starter_pid) {
 
   client c;
   while (linker_pop(lin, &c) == 0) {
-    syslog(LOG_INFO, "[cmds] Popped request from [%d]", c.pid);
+    syslog(LOG_INFO, "[cmds] Popped request from [%d] working at [%s]", c.pid, c.working_dir);
 
     bool found = false;
 

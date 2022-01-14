@@ -9,12 +9,6 @@
 #include <unistd.h>
 
 /**
- * @define  STRMEMCPY   function wraper for memcpy
- */
-#define STRMEMCPY(dest, src)                                                   \
-  memcpy(dest, src, strlen(src) > sizeof(dest) ? sizeof(dest) : strlen(src));
-
-/**
  * @function  setup_signals
  * @abstract  setup signal handling, catch them and affect handler
  */
@@ -53,7 +47,7 @@ int main(int argc, char **argv) {
 
   client c;
   c.pid = pid;
-  STRMEMCPY(c.working_dir, wd_buf);
+  strcpy(c.working_dir, wd_buf);
 
   char pipe_in[PIPE_LEN] = {0};
   snprintf(pipe_in, sizeof(pipe_in), "/tmp/%d_in", pid);
@@ -95,7 +89,7 @@ int main(int argc, char **argv) {
 
   char buf_in[blksize_pipe_in];
 
-  printf("CmdC>\n");
+  printf("%s>\n", c.working_dir);
   ssize_t r_in;
   while ((r_in = read(STDIN_FILENO, buf_in, blksize_pipe_in)) > 0) {
     if (mkfifo(pipe_out, S_IRUSR | S_IWUSR) == -1) {
@@ -148,7 +142,7 @@ int main(int argc, char **argv) {
       perror("close");
       exit(EXIT_FAILURE);
     }
-    printf("CmdC>\n");
+    printf("%s>\n", c.working_dir);
   }
   if (close(fd_in) == -1) {
     perror("close");
