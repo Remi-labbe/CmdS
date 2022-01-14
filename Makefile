@@ -20,11 +20,11 @@ all: $(EXECS)
 
 linker.o: linker.h config.h linker.c
 
-cmdc: config.h client.c $(tools_dir)linker.o
-	$(CC) $(LDFLAGS) $^ -o $@
+cmdc: config.h client.c $(tools_dir)linker.o linker.h
+	$(CC) $(LDFLAGS) $^ -o $@ -lrt
 
-cmds: config.h server.c $(tools_dir)linker.o
-	$(CC) $(LDFLAGS) $^ -o $@
+cmds: config.h server.c $(tools_dir)linker.o linker.h
+	$(CC) $(LDFLAGS) $^ -o $@ -lrt
 
 $(doc_dir)Manuel_Technique.pdf:
 	pandoc --pdf-engine=pdflatex -o $@ $(doc_dir)Manuel_Technique.md
