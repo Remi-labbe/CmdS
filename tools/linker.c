@@ -17,7 +17,6 @@
 #include "linker.h"
 
 struct linker {
-  const char *shm_name;
   size_t head;
   size_t tail;
   sem_t mutex;
@@ -41,7 +40,7 @@ static void _cleanup(linker *lp) {
   if (sem_destroy(&lp->empty) == -1) {
     perror("sem_destroy - empty");
   }
-  if (shm_unlink(lp->shm_name) == -1) {
+  if (shm_unlink(LINKER_SHM) == -1) {
     perror("shm_unlink");
   }
 }
@@ -73,7 +72,6 @@ linker *linker_init(const char *name) {
 
   lp->head = 0;
   lp->tail = 0;
-  lp->shm_name = name;
 
   if (sem_init(&lp->mutex, 1, 1) == -1) {
     perror("sem_init - mutex");
